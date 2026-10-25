@@ -1,0 +1,21 @@
+{
+  "id": "whyregister.hours-well-spent",
+  "type": "bundle",
+  "title": "Hours Well Spent",
+  "tagline": "Shared-time vignettes: NPC-proposed, LLM-written, remembered by everyone there, and good for a skill.",
+  "description": "NPCs propose spending time together: going over the ledgers, sparring in the yard, a long night over wine. Confirm, and the hours pass behind a fade; SkyrimNet writes how they went from who you both are, where you are and what the NPC remembers. It's narrated, so everyone present remembers it, and you practise a fitting skill.\n\n**Requires:** HoursWellSpent.esp (shipped with this mod), PapyrusUtil, powerofthree's Papyrus Extender.",
+  "author": "whyregister",
+  "tags": [
+    "immersion"
+  ],
+  "nsfw": false,
+  "mods": [
+    {
+      "name": "Hours Well Spent",
+      "file": "HoursWellSpent.esp",
+      "required": true
+    }
+  ],
+  "version": "0.1.0",
+  "min_skyrimnet_version": "0.28.0"
+}

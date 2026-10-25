@@ -1,0 +1,25 @@
+{
+  "SpriggitSource": {
+    "PackageName": "Spriggit.Json.Skyrim",
+    "Version": "0.41"
+  },
+  "ModKey": "HoursWellSpent.esp",
+  "GameRelease": "SkyrimSE",
+  "ModHeader": {
+    "Flags": [
+      "Small"
+    ],
+    "Author": "whyregister",
+    "Description": "Hours Well Spent: live the hours an NPC proposes, in two minutes instead of two hours.",
+    "MasterReferences": [
+      {
+        "Master": "Skyrim.esm",
+        "FileSize": 0
+      }
+    ],
+    "INTV": 1,
+    "Stats": {
+      "Version": 1.7
+    }
+  }
+}

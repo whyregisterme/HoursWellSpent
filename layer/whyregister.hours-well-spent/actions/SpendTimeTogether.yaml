@@ -1,0 +1,40 @@
+# An NPC proposes spending the next hours on something together, now: HWS_Main.SpendTimeTogether.
+# The player confirms in a box, time passes behind a fade, and SkyrimNet writes how it went.
+name: SpendTimeTogether
+description: >-
+  Spend the next few hours on something with {{ player.name }}, starting now: reviewing the ledgers,
+  inspecting the battlements, sparring in the yard, a long meal, a walk through the market, studying,
+  hunting. Use it when, in this line, you and {{ player.name }} have just agreed to do it right away,
+  not later. Time will pass while you do it.
+
+questEditorId: HWS_Quest
+scriptName: HWS_Main
+executionFunctionName: SpendTimeTogether
+
+# Function SpendTimeTogether(Actor akSpeaker, string asActivity, string asHours)
+parameterMapping:
+  - type: speaker
+  - type: dynamic
+    name: activity
+    description: "what you will spend the time doing, in a few words, e.g. \"review the ledgers\""
+  - type: dynamic
+    name: hours
+    # Optional: a missing key must not abort the action (SkyrimNet's missing-parameter check does).
+    optional: true
+    description: "how many hours it will take, a number from 1 to 8"
+
+eligibilityRules:
+  - conditions:
+      - decoratorName: is_in_combat
+        arguments: ["currentActor"]
+        comparisonOperator: "=="
+        expectedValue: false
+      # HWS_Active is 1 while time is already being spent.
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "none", "HWS_Active", 0]
+        comparisonOperator: "=="
+        expectedValue: 0
+    logicalOperator: AND
+    required: true
+
+defaultPriority: 5

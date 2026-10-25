@@ -1,0 +1,33 @@
+{
+  "FormKey": "000801:HoursWellSpent.esp",
+  "EditorID": "HWS_ConfirmMsg",
+  "Description": {
+    "TargetLanguage": "English",
+    "Value": "Spend the next while together? Time will pass, and you'll both remember how it went."
+  },
+  "INAM": "0x00000000",
+  "Quest": "000800:HoursWellSpent.esp",
+  "Flags": [
+    "MessageBox"
+  ],
+  "MenuButtons": [
+    {
+      "Text": {
+        "TargetLanguage": "English",
+        "Value": "Spend the time"
+      }
+    },
+    {
+      "Text": {
+        "TargetLanguage": "English",
+        "Value": "Not now"
+      }
+    },
+    {
+      "Text": {
+        "TargetLanguage": "English",
+        "Value": "Not now (silently)"
+      }
+    }
+  ]
+}

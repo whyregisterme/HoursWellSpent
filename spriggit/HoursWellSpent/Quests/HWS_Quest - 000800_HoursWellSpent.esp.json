@@ -1,0 +1,72 @@
+{
+  "FormKey": "000800:HoursWellSpent.esp",
+  "EditorID": "HWS_Quest",
+  "VirtualMachineAdapter": {
+    "Scripts": [
+      {
+        "Name": "HWS_Main",
+        "Properties": [
+          {
+            "MutagenObjectType": "ScriptObjectProperty",
+            "Name": "ConfirmMsg",
+            "Object": "000801:HoursWellSpent.esp"
+          },
+          {
+            "MutagenObjectType": "ScriptObjectProperty",
+            "Name": "GameHour",
+            "Object": "000038:Skyrim.esm"
+          },
+          {
+            "MutagenObjectType": "ScriptObjectProperty",
+            "Name": "PartnerAlias",
+            "Object": "000800:HoursWellSpent.esp",
+            "Alias": 1
+          }
+        ]
+      }
+    ],
+    "FileName": "",
+    "Aliases": [
+      {
+        "Property": {
+          "Name": "",
+          "Object": "000800:HoursWellSpent.esp",
+          "Alias": 0
+        },
+        "Scripts": [
+          {
+            "Name": "HWS_PlayerAlias"
+          }
+        ]
+      }
+    ]
+  },
+  "Name": {
+    "TargetLanguage": "English",
+    "Value": "Hours Well Spent"
+  },
+  "Flags": [
+    "StartGameEnabled"
+  ],
+  "Priority": 50,
+  "NextAliasID": 2,
+  "Aliases": [
+    {
+      "Name": "PlayerAlias",
+      "Flags": [
+        "AllowReuseInQuest"
+      ],
+      "UniqueActor": "000007:Skyrim.esm",
+      "VoiceTypes": "Null"
+    },
+    {
+      "ID": 1,
+      "Name": "Partner",
+      "Flags": [
+        "Optional",
+        "AllowReuseInQuest"
+      ],
+      "VoiceTypes": "Null"
+    }
+  ]
+}
