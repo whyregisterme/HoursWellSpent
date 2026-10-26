@@ -16,6 +16,6 @@
       "required": true
     }
   ],
-  "version": "0.1.0",
+  "version": "0.2.0",
   "min_skyrimnet_version": "0.28.0"
 }

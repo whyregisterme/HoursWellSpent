@@ -21,6 +21,11 @@
             "Name": "PartnerAlias",
             "Object": "000800:HoursWellSpent.esp",
             "Alias": 1
+          },
+          {
+            "MutagenObjectType": "ScriptObjectProperty",
+            "Name": "UseMagelight",
+            "Object": "000802:HoursWellSpent.esp"
           }
         ]
       }

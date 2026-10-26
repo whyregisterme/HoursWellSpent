@@ -31,7 +31,8 @@ FLAGS="$(cygpath -w "$TOOLS/../Data/Source/Scripts/TESV_Papyrus_Flags.flg")"
 # and Papyrus Extender versions actually installed. Data/Scripts/Source comes first: that is where
 # SKSE put its extended Form/ObjectReference/Actor (GetDisplayName etc.); Data/Source/Scripts has
 # the vanilla ones, plus files SKSE does not touch (Debug).
-IMPORTS="$(cygpath -w "$HERE/scripts");$(cygpath -w "$TOOLS/../Data/Scripts/Source");$(cygpath -w "$TOOLS/../Data/Source/Scripts")"
+# imports/ holds headers compiled against but never shipped (Magelight.psc: Magelight installs its own).
+IMPORTS="$(cygpath -w "$HERE/scripts");$(cygpath -w "$HERE/imports");$(cygpath -w "$TOOLS/../Data/Scripts/Source");$(cygpath -w "$TOOLS/../Data/Source/Scripts")"
 for psc in "$HERE"/scripts/*.psc; do
     "$TOOLS/Caprica/Caprica.exe" --game skyrim --ignorecwd -q --import "$IMPORTS" --flags "$FLAGS" \
         --output "$(cygpath -w "$STAGE/Scripts")" "$(cygpath -w "$psc")"
@@ -92,6 +93,9 @@ EOF
 echo "== 4/6 stage"
 cp "$HERE"/scripts/*.psc "$STAGE/Source/Scripts/"
 cp -r "$HERE/layer/$LAYER_ID" "$STAGE/SKSE/Plugins/SkyrimNet/external/"
+# The Magelight UI page (optional at run time: without Magelight the folder is simply never read).
+mkdir -p "$STAGE/Magelight"
+cp -r "$HERE/magelight/$NAME" "$STAGE/Magelight/"
 # Named after the mod so it never collides with another mod's LICENSE in Data/.
 cp "$HERE/LICENSE" "$STAGE/$NAME-LICENSE.txt"
 (cd "$STAGE" && find . -type f | sort)

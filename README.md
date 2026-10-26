@@ -13,6 +13,8 @@ both are, where you are and what the NPC has been remembering lately.
 - SkyrimNet **0.28.0 (beta 28) or newer**
 - PapyrusUtil SE (SkyrimNet already needs it)
 - powerofthree's Papyrus Extender
+- Optional: **Magelight UI 1.3.0 or newer** (SeverActions installs it too). With it, the proposal and
+  the account appear on a proper page that names who and what; without it, as message boxes.
 
 ## Install
 
@@ -29,20 +31,21 @@ version 1.70, so it loads on SE 1.5.97 as well as AE, without needing BEES.
 
 - **The proposal.** When you and an NPC agree to do something together right now, they can fire the
   `SpendTimeTogether` action with what you'll do and for how long (1 to 8 hours; 2 if they don't say).
-  A notification names them and the activity, then a box asks:
+  With Magelight UI installed, a page names them, quotes the activity and gives the hours. Without it,
+  a notification says the same and a message box asks. Either way:
   - **Spend the time** goes ahead.
   - **Not now** declines, and the NPC hears that you put it off.
-  - **Not now (silently)** declines without telling the NPC.
+  - **Not now, quietly** declines without telling the NPC (Escape does the same on the page).
 - **The hours.** The screen fades out, the clock moves on, and it fades back in. It works across
   midnight, the date rolls over as it should.
 - **How it went.** SkyrimNet writes a short account (two to four sentences) from both bios, the NPC's
   recent memories, the place, the hour, and any followers who were close by. It's ordinary life, not
-  an adventure: no fights, deaths, quests or rewards, and nothing you'd have to undo. You read it in a
-  box, and it's narrated, so the NPC and anyone present remember it and the NPC can react.
+  an adventure: no fights, deaths, quests or rewards, and nothing you'd have to undo. You read it on the
+  page (or in a box), and it's narrated, so the NPC and anyone present remember it and the NPC can react.
 - **Practice.** The account names the one skill those hours practised for you, if any. You gain about
   5% of a level in it per hour, adjusted by your own bonuses (standing stones, perks, other mods), so
-  three hours over the books might give Speech around 15%. The notification shows what you actually
-  gained.
+  three hours over the books might give Speech around 15%. The page shows what you actually gained,
+  with a bar through the level; without Magelight, a notification does.
 - **Cooldown.** After the time is spent or declined, the action rests for 90 seconds. It can't fire
   while you or the NPC are in combat, or while time is already being spent.
 - If SkyrimNet doesn't answer within 45 seconds, you get a plain one-line account instead, so the hours
@@ -50,6 +53,8 @@ version 1.70, so it loads on SE 1.5.97 as well as AE, without needing BEES.
 
 ## Console levers
 
+- Prefer the plain message boxes (say, on a controller): `set HWS_UseMagelight to 0`. Set it back to
+  `1` and load a save to bring the page back.
 - Stuck mid-skip (black screen, no controls): `stopquest HWS_Quest`, then `startquest HWS_Quest`.
   Loading a save should also recover, since a skip interrupted by a load is finished with the plain
   account, though that path hasn't been tested in game.
@@ -60,6 +65,9 @@ version 1.70, so it loads on SE 1.5.97 as well as AE, without needing BEES.
 |---|---|
 | `scripts/HWS_Main.psc` | The action, the confirm box, the time skip, the account, the practice |
 | `scripts/HWS_PlayerAlias.psc` | Passes the load event on, so a skip interrupted by a reload is finished |
+| `scripts/HWS_UI.psc` | Every Magelight UI call, behind a check that Magelight is installed, new enough and ready |
+| `magelight/HoursWellSpent/` | The Magelight page: the proposal and the account, in Windows' own fonts (nothing bundled) |
+| `imports/` | Magelight's Papyrus header, compiled against and never shipped (Magelight installs its own) |
 | `spriggit/HoursWellSpent/` | The plugin as Spriggit JSON: one quest with a partner alias, and the confirm box |
 | `layer/whyregister.hours-well-spent/` | The SkyrimNet layer: the `SpendTimeTogether` action and the `hws_scene` prompt that writes the account |
 
@@ -76,7 +84,10 @@ version 1.70, so it loads on SE 1.5.97 as well as AE, without needing BEES.
   Papyrus log records both.
 - Only skills from the prompt's own list can be raised, so a stray reply can't touch anything else.
 - The confirm box doesn't name anyone (name tags in message boxes showed up as "[...]" in game); the
-  notification just before it says who and what.
+  notification just before it says who and what. The Magelight page gets the names as plain text.
+- The page falls back to the message boxes whenever it can't be used: Magelight missing or older than
+  1.3.0, another mod holding the cursor, the page failing to load, or `HWS_UseMagelight` at 0. Closing
+  the proposal with Escape declines it quietly.
 
 ## Building
 
@@ -91,6 +102,7 @@ installed. It only reads the game folder.
 
 - SkyrimNet by the SkyrimNet team
 - PapyrusUtil by exiledviking; Papyrus Extender by powerofthree
+- Magelight UI by Severause (MIT); its Papyrus header is in `imports/` for building
 
 ## License
 

@@ -41,13 +41,38 @@ expected = [
     'HoursWellSpent.esp',
     'Scripts/HWS_Main.pex',
     'Scripts/HWS_PlayerAlias.pex',
+    'Scripts/HWS_UI.pex',
     layer + 'manifest.json',
     layer + 'actions/SpendTimeTogether.yaml',
     layer + 'prompts/hws_scene.prompt',
+    'Magelight/HoursWellSpent/manifest.json',
+    'Magelight/HoursWellSpent/views/prompt/index.html',
 ]
 for e in expected:
     if e not in names:
         problems.append(f'missing: {e}')
+
+# Magelight installs its own Magelight.pex; a copy here would overwrite it (with whatever version
+# imports/ was taken from).
+for n in names:
+    if n.lower() in ('scripts/magelight.pex', 'source/scripts/magelight.psc'):
+        problems.append(f'ships a Magelight file it must not: {n}')
+
+# Magelight refuses a manifest whose modId is not its folder's name, so only ours, matching.
+ml = 'Magelight/'
+ml_dirs = sorted({n[len(ml):].split('/')[0] for n in names if n.startswith(ml)})
+if ml_dirs != ['HoursWellSpent']:
+    problems.append(f'folders under Magelight/: {ml_dirs}, expected only [\'HoursWellSpent\']')
+if ml + 'HoursWellSpent/manifest.json' in names:
+    try:
+        mlm = json.loads(z.read(ml + 'HoursWellSpent/manifest.json').decode('utf-8'))
+        if mlm.get('modId', 'HoursWellSpent') != 'HoursWellSpent':
+            problems.append(f"Magelight manifest modId {mlm.get('modId')!r} != folder name 'HoursWellSpent'")
+        for view, v in mlm.get('views', {}).items():
+            if ml + 'HoursWellSpent/' + v.get('path', '') not in names:
+                problems.append(f"Magelight view {view!r} names a page the zip lacks: {v.get('path')!r}")
+    except ValueError as err:
+        problems.append(f'Magelight manifest.json is not valid JSON: {err}')
 
 # SkyrimNet rejects any folder under external/ that has no manifest.json, and a store folder must be
 # named for its manifest id. So: exactly one layer folder, ours, with a manifest whose id matches.

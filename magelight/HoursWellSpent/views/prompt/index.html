@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hours Well Spent</title>
+<!--
+  The proposal and the account for Hours Well Spent, on Magelight UI.
+  HWS_Main (through HWS_UI) calls window.hwsPropose(json) or window.hwsAccount(json), then shows the view;
+  the buttons answer through window.hwsChoice(...), which the script registered as a listener.
+  Fonts are the ones Windows ships, as SeverActions does, so nothing is bundled.
+-->
+<style>
+  :root {
+    --ink: #ece6da;
+    --ink-strong: #f4efe5;
+    --ink-soft: #b3ab9d;
+    --ink-faint: #9b9486;
+    --card: #1c1a17;
+    --well: #24211c;
+    --line: #3a342b;
+    --edge: #4a4236;
+    --edge-strong: #5a5143;
+    --accent: #c9a45c;
+    --serif: "Sitka Text", Cambria, "Palatino Linotype", Georgia, serif;
+    --serif-hero: "Sitka Banner", "Sitka Display", Cambria, "Palatino Linotype", Georgia, serif;
+    --sans: "Segoe UI", system-ui, sans-serif;
+  }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: rgba(10, 9, 8, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); color: var(--ink);
+  }
+  .card {
+    display: none; box-sizing: border-box; width: 560px; max-width: calc(100vw - 48px);
+    padding: 40px 46px 36px; background: var(--card); border: 1px solid var(--edge); border-radius: 4px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    flex-direction: column; gap: 22px;
+  }
+  .card.on { display: flex; }
+  #account { width: 620px; }
+  .head { display: flex; flex-direction: column; gap: 10px; }
+  .kicker { margin: 0; font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0.22em; color: var(--accent); }
+  h1 { margin: 0; font-family: var(--serif-hero); font-size: 30px; font-weight: 400; line-height: 1.25; color: var(--ink-strong); }
+  .meta { margin: 0; font-size: 17px; color: var(--ink-soft); }
+  .rule { height: 1px; background: var(--line); }
+  .quote { margin: 0; font-size: 22px; font-style: italic; line-height: 1.4; }
+  .summary { margin: 0; font-size: 21px; line-height: 1.55; white-space: pre-line; }
+  .note { margin: 0; font-size: 15px; line-height: 1.4; color: var(--ink-faint); }
+  .buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .row { display: flex; gap: 10px; }
+  button {
+    height: 46px; border-radius: 3px; font-family: var(--sans); font-size: 15px; letter-spacing: 0.02em;
+    cursor: pointer; background: transparent; color: var(--ink); border: 1px solid var(--edge-strong);
+  }
+  .row button { flex: 1 1 0; }
+  button.primary { height: 48px; border: none; background: var(--accent); color: var(--card); font-size: 16px; font-weight: 600; }
+  button.quiet { color: var(--ink-soft); border-color: var(--line); }
+  button:hover { border-color: var(--accent); }
+  button.primary:hover { background: #d8b673; }
+  button:focus { outline: 2px solid var(--ink-strong); outline-offset: 2px; }
+  .skill { display: none; flex-direction: column; gap: 10px; padding: 16px 18px; background: var(--well); border-radius: 3px; }
+  .skill.on { display: flex; }
+  .skill-line { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  .skill-name { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--ink-strong); }
+  .skill-gain { font-size: 18px; font-weight: 500; color: var(--accent); }
+  .bar { position: relative; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .bar span { position: absolute; top: 0; bottom: 0; left: 0; }
+  #barBefore { background: #6f6656; }
+  #barGain { background: var(--accent); }
+</style>
+</head>
+<body>
+
+<section class="card" id="propose" aria-labelledby="proposeTitle">
+  <div class="head">
+    <p class="kicker">HOURS WELL SPENT</p>
+    <h1 id="proposeTitle"></h1>
+  </div>
+  <div class="rule" aria-hidden="true"></div>
+  <p class="quote" id="proposeActivity"></p>
+  <p class="meta" id="proposeHours"></p>
+  <div class="buttons">
+    <button type="button" class="primary" id="spend" data-choice="spend" data-ml-sound="ok">Spend the time</button>
+    <div class="row">
+      <button type="button" data-choice="later" data-ml-sound="cancel">Not now</button>
+      <button type="button" class="quiet" data-choice="quiet" data-ml-sound="cancel">Not now, quietly</button>
+    </div>
+  </div>
+  <p class="note" id="proposeNote"></p>
+</section>
+
+<section class="card" id="account" aria-labelledby="accountTitle">
+  <div class="head">
+    <p class="kicker" id="accountKicker"></p>
+    <h1 id="accountTitle"></h1>
+    <p class="meta" id="accountMeta"></p>
+  </div>
+  <div class="rule" aria-hidden="true"></div>
+  <p class="summary" id="accountSummary"></p>
+  <div class="skill" id="skill">
+    <div class="skill-line">
+      <span class="skill-name" id="skillName"></span>
+      <span class="skill-gain" id="skillGain"></span>
+    </div>
+    <div class="bar" role="img" id="skillBar"><span id="barBefore"></span><span id="barGain"></span></div>
+  </div>
+  <div class="buttons">
+    <button type="button" class="primary" id="continue" data-choice="continue" data-ml-sound="ok">Continue</button>
+  </div>
+</section>
+
+<script>
+(function () {
+  function parse(arg) {
+    if (typeof arg === 'string') {
+      try { return JSON.parse(arg); } catch (e) { return {}; }
+    }
+    return arg || {};
+  }
+  function text(id, value) { document.getElementById(id).textContent = value || ''; }
+  function clamp(x) { x = Number(x) || 0; return x < 0 ? 0 : (x > 1 ? 1 : x); }
+  function show(id, focusId) {
+    document.getElementById('propose').classList.toggle('on', id === 'propose');
+    document.getElementById('account').classList.toggle('on', id === 'account');
+    var f = document.getElementById(focusId);
+    if (f) { f.focus(); }
+  }
+  function upper(s) { return String(s || '').toUpperCase(); }
+
+  // {name, activity, hours}
+  window.hwsPropose = function (arg) {
+    var d = parse(arg);
+    text('proposeTitle', d.name + ' would like to spend some time with you');
+    // The NPC's own words, as a sentence: capitalised, one full stop (theirs may already have one).
+    var act = String(d.activity || 'some time together').replace(/[\s.!?]+$/, '');
+    act = act.charAt(0).toUpperCase() + act.slice(1);
+    text('proposeActivity', '“' + act + '.”');
+    text('proposeHours', d.hours);
+    text('proposeNote', '“Not now” tells ' + d.name + ' you put it off. “Quietly” doesn’t.');
+    show('propose', 'spend');
+  };
+
+  // {name, hours, start, end, place, summary, skill, pct, before, after, newLevel}
+  window.hwsAccount = function (arg) {
+    var d = parse(arg);
+    text('accountKicker', upper(d.hours) + ' LATER');
+    text('accountTitle', 'With ' + d.name);
+    var meta = (d.start && d.end) ? d.start + ' to ' + d.end : '';
+    if (d.place) { meta = meta ? meta + ' · ' + d.place : d.place; }
+    text('accountMeta', meta);
+    text('accountSummary', d.summary);
+    var skill = document.getElementById('skill');
+    if (d.skill && d.pct >= 1) {
+      text('skillName', d.newLevel > 0 ? d.skill + ' rose to ' + d.newLevel : d.skill + ' practised');
+      text('skillGain', '+' + d.pct + '% of a level');
+      // Within one level the bar shows where it was and what was added; after a level-up it starts again.
+      var before = d.newLevel > 0 ? 0 : clamp(d.before);
+      var after = d.newLevel > 0 ? clamp(d.after) : Math.max(before, clamp(d.after));
+      document.getElementById('barBefore').style.width = (before * 100) + '%';
+      var gain = document.getElementById('barGain');
+      gain.style.left = (before * 100) + '%';
+      gain.style.width = ((after - before) * 100) + '%';
+      document.getElementById('skillBar').setAttribute('aria-label',
+        'Progress through the ' + d.skill + ' level, with the part gained just now highlighted');
+      skill.classList.add('on');
+    } else {
+      skill.classList.remove('on');
+    }
+    show('account', 'continue');
+  };
+
+  var answered = false;
+  function answer(choice) {
+    if (answered) { return; }
+    answered = true;
+    show('', '');
+    if (typeof window.hwsChoice === 'function') { window.hwsChoice(choice); }
+  }
+  // A card going up takes answers again.
+  var proposeFn = window.hwsPropose, accountFn = window.hwsAccount;
+  window.hwsPropose = function (arg) { answered = false; proposeFn(arg); };
+  window.hwsAccount = function (arg) { answered = false; accountFn(arg); };
+
+  var buttons = document.querySelectorAll('button[data-choice]');
+  for (var i = 0; i < buttons.length; i++) {
+    buttons[i].addEventListener('click', function () { answer(this.getAttribute('data-choice')); });
+  }
+
+  // Keys are handled here rather than trusted to the engine: Ultralight has skipped DOM events before
+  // (Political Engine's map never got contextmenu), and SeverActions' prompts listen for keys themselves.
+  // Enter presses the focused button; Escape declines quietly or closes the account. Magelight may also
+  // leave UI mode on Escape; HWS_Main counts only the first answer.
+  document.addEventListener('keydown', function (e) {
+    var open = document.querySelector('.card.on');
+    if (!open) { return; }
+    if (e.key === 'Enter' || e.keyCode === 13) {
+      var f = document.activeElement;
+      if (f && f.getAttribute && f.getAttribute('data-choice')) {
+        e.preventDefault();
+        answer(f.getAttribute('data-choice'));
+      }
+    } else if (e.key === 'Escape' || e.keyCode === 27) {
+      e.preventDefault();
+      answer(open.id === 'propose' ? 'quiet' : 'continue');
+    }
+  });
+})();
+</script>
+</body>
+</html>
