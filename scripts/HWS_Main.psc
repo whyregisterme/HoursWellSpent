@@ -35,7 +35,7 @@ Spell Property PlanPower Auto
 {HWS_PlanPower, the "Plan the Hours" lesser power. Handed to the player on every load (GivePower).}
 
 ; Must equal the version in both manifest.json files; build.sh refuses to build otherwise.
-string Property ModVersion = "0.3.0-diag5" AutoReadOnly
+string Property ModVersion = "0.3.0" AutoReadOnly
 
 ; Tuning.
 int Property MinHours = 1 AutoReadOnly

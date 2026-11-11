@@ -3,7 +3,7 @@
 Shared-time vignettes for SkyrimNet: NPC-proposed, LLM-written, remembered by everyone there, and
 good for a skill.
 
-NPCs propose spending time together. Confirm, skip ahead, and SkyrimNet writes how it went:
+NPCs propose spending time together, or you plan the hours yourself. Confirm, skip ahead, and SkyrimNet writes how it went:
 narrated, remembered, and practised. Go over the ledgers with your steward, spar in the yard, sit up
 half the night over wine. The hours pass in a moment and you read how they went, written from who you
 both are, where you are and what the NPC has been remembering lately.
@@ -14,7 +14,8 @@ both are, where you are and what the NPC has been remembering lately.
 - PapyrusUtil SE (SkyrimNet already needs it)
 - powerofthree's Papyrus Extender
 - Optional: **Magelight UI 1.3.0 or newer** (SeverActions installs it too). With it, the proposal and
-  the account appear on a proper page that names who and what; without it, as message boxes.
+  the account appear on a proper page that names who and what; without it, as message boxes. The
+  **Plan the Hours** power needs it: without Magelight, the power only says so.
 
 ## Install
 
@@ -34,15 +35,28 @@ version 1.70, so it loads on SE 1.5.97 as well as AE, without needing BEES.
   With Magelight UI installed, a page names them, quotes the activity and gives the hours. Without it,
   a notification says the same and a message box asks. Either way:
   - **Spend the time** goes ahead.
+  - **Change the plan** (page only) opens the planner filled in with their idea: change the activity,
+    the hours, who else comes along, or add a Focus. They stay in it. **Back** returns to the proposal.
   - **Not now** declines, and the NPC hears that you put it off.
   - **Not now, quietly** declines without telling the NPC (Escape does the same on the page).
+- **Planning the hours yourself.** You know a lesser power, **Plan the Hours**. Cast it and a planner
+  page asks:
+  - **What:** type anything, or pick an idea (spar in the yard, read by the fire, work at the forge...).
+  - **How long:** 1 to 8 hours.
+  - **Who:** your followers and the people nearby, as many as you like, or nobody. Alone, the hours are
+    yours: the account is remembered, but nobody is told about it.
+  - **Focus** (optional): a skill you mean to work on. The account works it into the activity, and the
+    practice goes to that skill.
+
+  It can't be used in combat or while hours are already being spent. Escape or Cancel closes it.
 - **The hours.** The screen fades out, the clock moves on, and it fades back in. It works across
   midnight, the date rolls over as it should.
 - **How it went.** SkyrimNet writes a short account (two to four sentences) from both bios, the NPC's
   recent memories, the place, the hour, and any followers who were close by. It's ordinary life, not
   an adventure: no fights, deaths, quests or rewards, and nothing you'd have to undo. You read it on the
   page (or in a box), and it's narrated, so the NPC and anyone present remember it and the NPC can react.
-- **Practice.** The account names the one skill those hours practised for you, if any. You gain about
+- **Practice.** The account names the one skill those hours practised for you, if any (with a Focus,
+  that skill). You gain about
   5% of a level in it per hour, adjusted by your own bonuses (standing stones, perks, other mods), so
   three hours over the books might give Speech around 15%. The page shows what you actually gained,
   with a bar through the level; without Magelight, a notification does.
@@ -65,15 +79,17 @@ version 1.70, so it loads on SE 1.5.97 as well as AE, without needing BEES.
 |---|---|
 | `scripts/HWS_Main.psc` | The action, the confirm box, the time skip, the account, the practice |
 | `scripts/HWS_PlayerAlias.psc` | Passes the load event on, so a skip interrupted by a reload is finished |
+| `scripts/HWS_PlanEffect.psc` | The Plan the Hours power's effect: opens the planner |
 | `scripts/HWS_UI.psc` | Every Magelight UI call, behind a check that Magelight is installed, new enough and ready |
-| `magelight/HoursWellSpent/` | The Magelight page: the proposal and the account, in Windows' own fonts (nothing bundled) |
+| `magelight/HoursWellSpent/` | The Magelight page: the proposal, the planner and the account, in Windows' own fonts (nothing bundled) |
 | `imports/` | Magelight's Papyrus header, compiled against and never shipped (Magelight installs its own) |
-| `spriggit/HoursWellSpent/` | The plugin as Spriggit JSON: one quest with a partner alias, and the confirm box |
+| `spriggit/HoursWellSpent/` | The plugin as Spriggit JSON: one quest with a partner alias, the confirm box, and the Plan the Hours power |
 | `layer/whyregister.hours-well-spent/` | The SkyrimNet layer: the `SpendTimeTogether` action and the `hws_scene` prompt that writes the account |
 
 - The account comes from `SendCustomPromptToLLM` with the layer's `hws_scene` prompt. It returns JSON
-  (`summary`, `skill`); the summary goes out through `DirectNarration`, which is what makes it a shared
-  memory.
+  (`hws_summary`, `hws_skill`; anything the model wraps around it, such as a code fence, is trimmed
+  off). With company, the summary goes out through `DirectNarration`, which is what makes it a shared
+  memory; alone, through `RegisterPersistentEvent`, remembered without anyone reacting.
 - Nothing is coded to a particular character: names, bios, memories and places all come from
   SkyrimNet at run time.
 - Time moves by adding hours to `GameHour`, as the vanilla wait does, behind a fade with controls off.
