@@ -35,7 +35,7 @@ Spell Property PlanPower Auto
 {HWS_PlanPower, the "Plan the Hours" lesser power. Handed to the player on every load (GivePower).}
 
 ; Must equal the version in both manifest.json files; build.sh refuses to build otherwise.
-string Property ModVersion = "0.3.0-diag3" AutoReadOnly
+string Property ModVersion = "0.3.0-diag5" AutoReadOnly
 
 ; Tuning.
 int Property MinHours = 1 AutoReadOnly
@@ -62,6 +62,7 @@ float sentAt = 0.0     ; real seconds when the scene prompt went out (developmen
 
 ; Magelight page: its view id (0 = message boxes this session) and what it shows ("", "propose", "account").
 int uiView = 0
+bool uiFailed = false     ; the page failed to load this session: message boxes, no retry
 string uiShowing = ""
 string lastSummary = ""
 
@@ -113,6 +114,7 @@ EndFunction
 Function SetupUI()
     uiView = 0
     uiShowing = ""
+    uiFailed = false
     if !UseMagelight || UseMagelight.GetValue() <= 0
         HWS_Diag.Log("SetupUI: skipped, " + UiDetail())
         return
@@ -183,7 +185,7 @@ Function SpendTimeTogether(Actor akSpeaker, string asActivity, string asHours)
     PartnerAlias.ForceRefTo(akSpeaker)
     ; No page yet this session (Magelight wasn't ready at load, or HWS_UseMagelight was turned back on):
     ; try again. RegisterMod is idempotent, so this is safe to repeat.
-    if uiView == 0 && UseMagelight && UseMagelight.GetValue() > 0
+    if uiView == 0 && !uiFailed && UseMagelight && UseMagelight.GetValue() > 0
         HWS_Diag.Log("proposal: no page yet, setting up again")
         SetupUI()
         if uiView == 0 && HWS_UI.Installed()
@@ -194,9 +196,14 @@ Function SpendTimeTogether(Actor akSpeaker, string asActivity, string asHours)
     HWS_Diag.Log("proposal: " + UiDetail())
     if UiReady()
         uiShowing = "propose"
+        ; The page can switch to the planner, prefilled with this proposal ("Change the plan"), without a
+        ; round trip, so it gets the planner's data now: who could join (the proposer first, locked in),
+        ; the hours as a number, and the place. A changed plan comes back through OnUiPlan.
+        GatherCandidates(akSpeaker)
         string json = "{\"name\":\"" + JsonEscape(akSpeaker.GetDisplayName()) + "\"" \
             + ",\"activity\":\"" + JsonEscape(asActivity) + "\"" \
-            + ",\"hours\":\"" + HoursText(h) + "\"}"
+            + ",\"hours\":\"" + HoursText(h) + "\"" \
+            + ",\"plan\":" + PlannerJson(h, Game.GetPlayer()) + "}"
         if HWS_UI.Open(uiView, "hwsPropose", json)
             return
         endif
@@ -315,6 +322,28 @@ Function StartSpending()
     RegisterForSingleUpdate(SceneTimeoutSeconds)
 EndFunction
 
+; The reply from its first "{" to its last "}". Models sometimes wrap the JSON in a ```json fence or a
+; sentence, and GetJsonString then finds nothing (2026-11-11: a full account lost to a fence).
+string Function JsonBody(string asText)
+    int first = StringUtil.Find(asText, "{")
+    if first < 0
+        return asText
+    endif
+    int last = -1
+    int at = StringUtil.Find(asText, "}", first)
+    while at >= 0
+        last = at
+        at = StringUtil.Find(asText, "}", at + 1)
+    endwhile
+    if last < 0
+        return asText
+    endif
+    if first > 0 || last < StringUtil.GetLength(asText) - 1
+        HWS_Diag.Log("scene: reply had text around the JSON, trimmed to it")
+    endif
+    return StringUtil.Substring(asText, first, last - first + 1)
+EndFunction
+
 ; SendCustomPromptToLLM's callback. response is the prompt's JSON: {"hws_summary": "...", "hws_skill": "..."}.
 Function OnScene(string response, int success)
     HWS_Diag.Log("scene: reply after " + (Utility.GetCurrentRealTime() - sentAt) + " s, success " + success \
@@ -327,6 +356,7 @@ Function OnScene(string response, int success)
     string summary = ""
     string skill = ""
     if success == 1
+        response = JsonBody(response)
         ; hws_ keys, not "summary"/"skill": a key is a Papyrus string, and a common word can come back
         ; with another script's casing ("Summary"), which the JSON lookup would then miss.
         summary = SkyrimNetApi.GetJsonString(response, "hws_summary", "")
@@ -440,6 +470,8 @@ Function Reset()
     sessionWhoCount = 0
     sessionFocus = ""
     sessionOrigin = ""
+    candidates = None
+    candidateCount = 0
     startClock = ""
     GoToState("")
 EndFunction
@@ -490,15 +522,21 @@ Function OnUiExited(string asEventName, string asModId, float afView, Form akSen
     endif
 EndFunction
 
-; The planner's "Plan it": asPlan is the session configuration as JSON (see ReadPlan).
+; The planner's "Plan it": asPlan is the session configuration as JSON (see ReadPlan). From the power
+; (uiShowing "plan") or from a proposal the player changed (uiShowing "propose").
 Function OnUiPlan(string asEventName, string asPlan, float afView, Form akSender)
     HWS_Diag.Log("event hwsPlan from view " + afView + ": " + asPlan + " | " + UiDetail())
-    if uiView == 0 || afView as int != uiView || uiShowing != "plan"
+    if uiView == 0 || afView as int != uiView || (uiShowing != "plan" && uiShowing != "propose")
         return
     endif
+    bool fromProposal = uiShowing == "propose"
     uiShowing = ""
     HWS_UI.Close(uiView)
-    ReadPlan(asPlan)
+    if fromProposal && (GetState() != "Asking" || !partner)
+        HWS_Diag.Log("plan: from a proposal no longer open, ignored")
+        return
+    endif
+    ReadPlan(asPlan, fromProposal)
 EndFunction
 
 ; The page couldn't load: message boxes for the rest of the session, and whatever was up goes to one now.
@@ -510,6 +548,7 @@ Function OnUiFailed(string asEventName, string asDetail, float afView, Form akSe
     Debug.Trace("[HWS] Magelight page failed to load (" + asDetail + "): message boxes this session")
     HWS_UI.Close(uiView)
     uiView = 0
+    uiFailed = true
     string showing = uiShowing
     uiShowing = ""
     if showing == "propose" && GetState() == "Asking"
@@ -552,7 +591,7 @@ Function OpenPlanner()
         Debug.Notification("Planning the hours needs the Magelight page (HWS_UseMagelight is 0).")
         return
     endif
-    if uiView == 0
+    if uiView == 0 && !uiFailed
         SetupUI()
     endif
     if !UiReady()
@@ -563,22 +602,8 @@ Function OpenPlanner()
         return
     endif
     GoToState("Planning")
-    GatherCandidates()
-    string who = ""
-    int i = 0
-    while i < candidateCount
-        if who != ""
-            who += ","
-        endif
-        string tag = ""
-        if IsFollower(candidates[i])
-            tag = "follower"
-        endif
-        who += "{\"name\":\"" + JsonEscape(candidates[i].GetDisplayName()) + "\",\"tag\":\"" + tag + "\"}"
-        i += 1
-    endwhile
-    string json = "{\"who\":[" + who + "],\"hours\":" + DefaultHours + ",\"minHours\":" + MinHours \
-        + ",\"maxHours\":" + MaxHours + ",\"place\":\"" + JsonEscape(PlaceName(player)) + "\"}"
+    GatherCandidates(None)
+    string json = PlannerJson(DefaultHours, player)
     HWS_Diag.Log("planner: offering " + candidateCount + " candidate(s): " + json)
     uiShowing = "plan"
     if !HWS_UI.Open(uiView, "hwsPlanner", json)
@@ -588,20 +613,54 @@ Function OpenPlanner()
     endif
 EndFunction
 
-; Followers within CompanionRange first, then the closest other living, non-hostile people in range, up
-; to 12 in all. Creatures only if they follow you (a dog, a familiar).
-Function GatherCandidates()
+; The planner page's data: {who: [{name, tag}], hours, minHours, maxHours, place}, from candidates.
+; tag: "follower", or "proposed" for a proposer at position 0 (the page locks that one in).
+string Function PlannerJson(int aiHours, Actor akPlayer)
+    ; lockFirst 1: position 0 is the proposer, picked and locked. A number, not a tag the page compares:
+    ; a word like "proposed" can come back as "Proposed" (the string pool's casing).
+    int lockFirst = 0
+    if candidateCount > 0 && candidates[0] == partner && GetState() == "Asking"
+        lockFirst = 1
+    endif
+    string who = ""
+    int i = 0
+    while i < candidateCount
+        if who != ""
+            who += ","
+        endif
+        string tag = ""
+        if i == 0 && lockFirst == 1
+            tag = "proposed this"
+        elseif IsFollower(candidates[i])
+            tag = "follower"
+        endif
+        who += "{\"name\":\"" + JsonEscape(candidates[i].GetDisplayName()) + "\",\"tag\":\"" + tag + "\"}"
+        i += 1
+    endwhile
+    return "{\"who\":[" + who + "],\"lockFirst\":" + lockFirst + ",\"hours\":" + aiHours + ",\"minHours\":" + MinHours \
+        + ",\"maxHours\":" + MaxHours + ",\"place\":\"" + JsonEscape(PlaceName(akPlayer)) + "\"}"
+EndFunction
+
+; akFirst (a proposer) at position 0 if given; then followers within CompanionRange; then the closest
+; other living, non-hostile people in range, up to 12 in all. Creatures only if they follow you (a dog,
+; a familiar).
+Function GatherCandidates(Actor akFirst)
     candidates = new Actor[12]
     float[] dist = new float[12]
     candidateCount = 0
     Actor player = Game.GetPlayer()
+    if akFirst
+        candidates[0] = akFirst
+        dist[0] = -2.0
+        candidateCount = 1
+    endif
     Actor[] followers = PO3_SKSEFunctions.GetPlayerFollowers()
     ; With no followers this is None, not an empty array.
     if followers
         int i = 0
         while i < followers.Length && candidateCount < 12
             Actor f = followers[i]
-            if Offerable(f, player) && f.GetDistance(player) <= CompanionRange
+            if Offerable(f, player) && f.GetDistance(player) <= CompanionRange && candidates.Find(f) < 0
                 candidates[candidateCount] = f
                 dist[candidateCount] = -1.0     ; followers stay first, whatever the distance
                 candidateCount += 1
@@ -661,13 +720,18 @@ EndFunction
 ; The page's plan: {"hws_activity": text, "hws_hours": 1-8, "hws_who": "0,3" (positions in candidates,
 ; may be empty), "hws_focus": a skill name or ""}. Keys carry hws_ so no other script's casing of a
 ; common word ("Hours") can break the lookup. Everything is checked here, not trusted to the page.
-Function ReadPlan(string asPlan)
+; abProposal: the player changed an NPC's proposal. The proposer (partner) stays in, first, whatever the
+; page sent, and a failure declines the proposal quietly instead of cancelling a plan.
+Function ReadPlan(string asPlan, bool abProposal = false)
     string act = SkyrimNetApi.GetJsonString(asPlan, "hws_activity", "")
     int h = SkyrimNetApi.GetJsonInt(asPlan, "hws_hours", DefaultHours)
     string who = SkyrimNetApi.GetJsonString(asPlan, "hws_who", "")
     string focus = SkyrimNetApi.GetJsonString(asPlan, "hws_focus", "")
+    if act == "" && abProposal
+        act = activity
+    endif
     if act == ""
-        CancelPlan("no activity given")
+        PlanFailed("no activity given", abProposal)
         return
     endif
     if h < MinHours
@@ -681,6 +745,10 @@ Function ReadPlan(string asPlan)
     endif
     planWho = new Actor[12]
     planWhoCount = 0
+    if abProposal
+        planWho[0] = partner
+        planWhoCount = 1
+    endif
     if who != ""
         string[] picks = StringUtil.Split(who, ",")
         int i = 0
@@ -689,6 +757,8 @@ Function ReadPlan(string asPlan)
             if n >= 0 && n < candidateCount && candidates[n] && !candidates[n].IsDead() && planWho.Find(candidates[n]) < 0
                 planWho[planWhoCount] = candidates[n]
                 planWhoCount += 1
+            elseif abProposal && n == 0
+                ; The proposer, already first.
             else
                 HWS_Diag.Log("plan: pick '" + picks[i] + "' dropped (out of range, gone or repeated)")
             endif
@@ -703,27 +773,41 @@ Function ReadPlan(string asPlan)
     candidateCount = 0
     if !PartnerAlias || !GameHour
         Debug.Trace("[HWS] HWS_Quest properties are not filled; is HoursWellSpent.esp enabled?", 2)
-        CancelPlan("quest properties not filled")
+        PlanFailed("quest properties not filled", abProposal)
         return
     endif
     if Game.GetPlayer().IsInCombat()
         Debug.Notification("Not in the middle of a fight.")
-        CancelPlan("player in combat at confirm")
+        PlanFailed("player in combat at confirm", abProposal)
         return
     endif
     ; The plan becomes the session, the same one an NPC's proposal fills, and is spent the same way.
+    ; A changed proposal names exactly who comes, like a plan, so it adds no stray followers either.
     activity = planActivity
     hours = planHours
     sessionWho = planWho
     sessionWhoCount = planWhoCount
     sessionFocus = planFocus
-    sessionOrigin = "plan"
+    if abProposal
+        sessionOrigin = "npc-changed"
+    else
+        sessionOrigin = "plan"
+    endif
     partner = None
     if sessionWhoCount > 0
         partner = sessionWho[0]
         PartnerAlias.ForceRefTo(partner)
     endif
     StartSpending()
+EndFunction
+
+Function PlanFailed(string asWhy, bool abProposal)
+    if abProposal
+        HWS_Diag.Log("plan: changed proposal failed, " + asWhy + " -> declined quietly")
+        Decide(2)
+    else
+        CancelPlan(asWhy)
+    endif
 EndFunction
 
 Function CancelPlan(string asWhy)

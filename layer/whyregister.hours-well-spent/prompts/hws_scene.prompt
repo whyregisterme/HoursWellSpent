@@ -54,7 +54,7 @@ Also: {{ npc.name }} ({{ npc.race }}).
 {% endif %}
 Where: {{ location }}. It began in the {{ startTime }} and ended in the {{ endTime }}. Keep to that span: {% if hours == 1 %}an hour{% else %}{{ hours }} hours{% endif %}, not a whole day or afternoon.
 {% if companions != "" %}Also there: {{ companions }}.{% endif %}
-{% if focusName != "" %}{{ player.name }} set out to work on {{ focusName }}: make that the heart of what was done.{% endif %}
+{% if focusName != "" %}{{ player.name }} also meant to get better at {{ focusName }}. The hours are still {{ activity }}: work {{ focusName }} into that activity (reading about it, practising it along the way, a lesson within it). Do not replace the activity with something else.{% endif %}
 
 Write how those hours went, as something that already happened.
 - Two to four sentences, past tense, third person. Under 450 characters.
@@ -72,5 +72,5 @@ Write how those hours went, as something that already happened.
 - Pick the one skill these hours would have practised for {{ player.name }}, or "none": OneHanded, TwoHanded, Marksman, Block, Smithing, HeavyArmor, LightArmor, Pickpocket, Lockpicking, Sneak, Alchemy, Speechcraft, Alteration, Conjuration, Destruction, Illusion, Restoration, Enchanting.
 {% endif %}
 
-Respond with ONLY this JSON, compact:
+Respond with ONLY this JSON, compact, with no code fence or other text around it:
 {% raw %}{"hws_summary":"How the hours went.","hws_skill":"<one skill from the list above, or none>"}{% endraw %}

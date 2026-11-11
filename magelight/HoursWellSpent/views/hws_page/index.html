@@ -106,6 +106,7 @@
   <p class="meta" id="proposeHours"></p>
   <div class="buttons">
     <button type="button" class="primary" id="spend" data-choice="spend" data-ml-sound="ok">Spend the time</button>
+    <button type="button" id="changePlan" data-ml-sound="click">Change the plan…</button>
     <div class="row">
       <button type="button" data-choice="later" data-ml-sound="cancel">Not now</button>
       <button type="button" class="quiet" data-choice="quiet" data-ml-sound="cancel">Not now, quietly</button>
@@ -189,9 +190,12 @@
   }
   function upper(s) { return String(s || '').toUpperCase(); }
 
-  // {name, activity, hours}
+  // {name, activity, hours (text), plan: planner data as for hwsPlanner, with lockFirst 1}
+  var proposal = null;
   window.hwsPropose = function (arg) {
     var d = parse(arg);
+    proposal = d;
+    document.getElementById('changePlan').style.display = d.plan ? '' : 'none';
     text('proposeTitle', d.name + ' would like to spend some time with you');
     // The NPC's own words, as a sentence: capitalised, one full stop (theirs may already have one).
     var act = String(d.activity || 'some time together').replace(/[\s.!?]+$/, '');
@@ -245,7 +249,9 @@
     ['Sneak', 'Sneak'], ['Alchemy', 'Alchemy'], ['Speechcraft', 'Speech'], ['Alteration', 'Alteration'],
     ['Conjuration', 'Conjuration'], ['Destruction', 'Destruction'], ['Illusion', 'Illusion'],
     ['Restoration', 'Restoration'], ['Enchanting', 'Enchanting']];
-  var plan = { hours: 2, min: 1, max: 8, who: [], picked: [], focus: '' };
+  // mode 'plan' (the power) or 'proposal' (changing an NPC's proposal: the proposer is position 0,
+  // picked and locked; Cancel reads Back and returns to the proposal; Escape declines it quietly).
+  var plan = { hours: 2, min: 1, max: 8, who: [], picked: [], focus: '', locked: -1, mode: 'plan' };
   var what = document.getElementById('planWhat');
   var go = document.getElementById('planGo');
 
@@ -291,16 +297,21 @@
     go.disabled = !what.value.trim();
   }
 
-  window.hwsPlanner = function (arg) {
-    var d = parse(arg);
+  // d: {who, lockFirst, hours, minHours, maxHours, place}; prefill: {activity, title, meta} or none.
+  function openPlanner(d, prefill) {
+    prefill = prefill || {};
+    plan.mode = prefill.activity !== undefined ? 'proposal' : 'plan';
     plan.min = Number(d.minHours) || 1;
     plan.max = Number(d.maxHours) || 8;
     plan.hours = Math.min(plan.max, Math.max(plan.min, Number(d.hours) || 2));
     plan.who = Array.isArray(d.who) ? d.who : [];
-    plan.picked = [];
+    plan.locked = (Number(d.lockFirst) === 1 && plan.who.length) ? 0 : -1;
+    plan.picked = plan.locked === 0 ? [0] : [];
     plan.focus = '';
-    what.value = '';
-    text('planPlace', d.place ? 'Here, in ' + d.place : '');
+    what.value = prefill.activity || '';
+    text('planTitle', prefill.title || 'Plan the next hours');
+    text('planPlace', prefill.meta || (d.place ? 'Here, in ' + d.place : ''));
+    text('planCancel', plan.mode === 'proposal' ? 'Back' : 'Cancel');
 
     var ideas = document.getElementById('planIdeas');
     ideas.textContent = '';
@@ -315,6 +326,7 @@
     plan.who.forEach(function (w, i) {
       var b = chip(w.name, w.tag);
       b.addEventListener('click', function () {
+        if (i === plan.locked) { return; }   // the proposer: it's their invitation
         var at = plan.picked.indexOf(i);
         if (at >= 0) { plan.picked.splice(at, 1); } else { plan.picked.push(i); }
         refreshPlan();
@@ -332,7 +344,21 @@
 
     refreshPlan();
     show('planner', 'planWhat');
-  };
+  }
+  window.hwsPlanner = function (arg) { openPlanner(parse(arg)); };
+
+  // "Change the plan…" on a proposal: the planner, filled in with what the NPC suggested. Nothing goes
+  // to Papyrus until Plan it (hwsPlan) or a decline; Back just shows the proposal again.
+  document.getElementById('changePlan').addEventListener('click', function () {
+    if (!proposal || !proposal.plan || answered) { return; }
+    var act = String(proposal.activity || '').replace(/[\s.!?]+$/, '');
+    openPlanner(proposal.plan, {
+      activity: act.charAt(0).toUpperCase() + act.slice(1),
+      title: 'Change the plan',
+      meta: proposal.name + '’s idea' + (proposal.plan.place ? ' · ' + proposal.plan.place : '')
+    });
+  });
+  function backToProposal() { show('propose', 'spend'); }
 
   document.getElementById('hoursLess').addEventListener('click', function () {
     if (plan.hours > plan.min) { plan.hours -= 1; refreshPlan(); }
@@ -357,6 +383,10 @@
   var answered = false;
   function answer(choice) {
     if (answered) { return; }
+    if (choice === 'cancel' && plan.mode === 'proposal' && document.getElementById('planner').classList.contains('on')) {
+      backToProposal();
+      return;
+    }
     answered = true;
     show('', '');
     if (typeof window.hwsChoice === 'function') { window.hwsChoice(choice); }
@@ -395,7 +425,13 @@
       }
     } else if (e.key === 'Escape' || e.keyCode === 27) {
       e.preventDefault();
-      answer(open.id === 'propose' ? 'quiet' : (open.id === 'planner' ? 'cancel' : 'continue'));
+      // A changed proposal declines quietly on Escape, as the proposal itself does: whether Magelight
+      // also leaves UI mode on Escape is the host's call, and HWS_Main reads that as a quiet decline too.
+      if (open.id === 'planner') {
+        answer(plan.mode === 'proposal' ? 'quiet' : 'cancel');
+      } else {
+        answer(open.id === 'propose' ? 'quiet' : 'continue');
+      }
     }
   });
 })();
