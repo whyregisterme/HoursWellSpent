@@ -1,0 +1,40 @@
+{
+  "FormKey": "000803:HoursWellSpent.esp",
+  "EditorID": "HWS_PlanEffect",
+  "VirtualMachineAdapter": {
+    "Scripts": [
+      {
+        "Name": "HWS_PlanEffect",
+        "Properties": [
+          {
+            "MutagenObjectType": "ScriptObjectProperty",
+            "Name": "MainQuest",
+            "Object": "000800:HoursWellSpent.esp"
+          }
+        ]
+      }
+    ]
+  },
+  "Name": {
+    "TargetLanguage": "English",
+    "Value": "Plan the Hours"
+  },
+  "Flags": [
+    "NoDuration",
+    "NoMagnitude",
+    "NoArea",
+    "HideInUI"
+  ],
+  "Archetype": {
+    "MutagenObjectType": "MagicEffectArchetype",
+    "Type": "Script"
+  },
+  "CastType": "FireAndForget",
+  "DualCastScale": 1.0,
+  "CastingSoundLevel": "Normal",
+  "Sounds": [],
+  "Description": {
+    "TargetLanguage": "English",
+    "Value": ""
+  }
+}

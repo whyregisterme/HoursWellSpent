@@ -42,15 +42,24 @@ expected = [
     'Scripts/HWS_Main.pex',
     'Scripts/HWS_PlayerAlias.pex',
     'Scripts/HWS_UI.pex',
+    'Scripts/HWS_Diag.pex',
+    'Scripts/HWS_PlanEffect.pex',
     layer + 'manifest.json',
     layer + 'actions/SpendTimeTogether.yaml',
     layer + 'prompts/hws_scene.prompt',
     'Magelight/HoursWellSpent/manifest.json',
-    'Magelight/HoursWellSpent/views/prompt/index.html',
+    'Magelight/HoursWellSpent/views/hws_page/index.html',
 ]
 for e in expected:
     if e not in names:
         problems.append(f'missing: {e}')
+
+# The development log belongs only in "-diag" builds: a release whose HWS_Diag still names the log
+# file would write it on every player's machine.
+diag_build = '-diag' in version
+for n in ('Scripts/HWS_Diag.pex', 'Source/Scripts/HWS_Diag.psc'):
+    if n in names and not diag_build and b'hoursWellSpent_diag.log'.lower() in z.read(n).lower():
+        problems.append(f'{n} is the development log, but {version} is not a -diag build')
 
 # Magelight installs its own Magelight.pex; a copy here would overwrite it (with whatever version
 # imports/ was taken from).
@@ -109,3 +118,5 @@ if problems:
         print('  - ' + p)
     sys.exit(1)
 print(f'release check: {len(names)} files, layer {layer_id} {version}, 0 problems')
+if diag_build:
+    print(f'NOTE: {version} is a DIAG build (development log on). Fine to install for testing; never publish it.')

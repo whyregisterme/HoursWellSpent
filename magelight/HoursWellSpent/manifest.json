@@ -1,11 +1,11 @@
 {
   "modId": "HoursWellSpent",
   "name": "Hours Well Spent",
-  "version": "0.2.0",
+  "version": "0.3.0-diag3",
   "minHost": "1.3.0",
   "views": {
-    "prompt": {
-      "path": "views/prompt/index.html",
+    "hws_page": {
+      "path": "views/hws_page/index.html",
       "layer": "popup",
       "fullscreen": true,
       "startVisible": false,

@@ -24,6 +24,11 @@
           },
           {
             "MutagenObjectType": "ScriptObjectProperty",
+            "Name": "PlanPower",
+            "Object": "000804:HoursWellSpent.esp"
+          },
+          {
+            "MutagenObjectType": "ScriptObjectProperty",
             "Name": "UseMagelight",
             "Object": "000802:HoursWellSpent.esp"
           }

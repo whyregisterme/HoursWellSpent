@@ -18,6 +18,21 @@ VERSION="$(python -c "import json;print(json.load(open(r'$(cygpath -w "$HERE/lay
 NAME="HoursWellSpent"
 LAYER_ID="whyregister.hours-well-spent"
 
+# One version, in three places: both manifests and HWS_Main's ModVersion (written into the dev log).
+ML_VERSION="$(python -c "import json;print(json.load(open(r'$(cygpath -w "$HERE/magelight/$NAME/manifest.json")'))['version'])")"
+PSC_VERSION="$(sed -n 's/^string Property ModVersion = "\(.*\)" AutoReadOnly.*/\1/p' "$HERE/scripts/HWS_Main.psc")"
+if [ "$ML_VERSION" != "$VERSION" ] || [ "$PSC_VERSION" != "$VERSION" ]; then
+    echo "version mismatch: layer $VERSION, Magelight manifest $ML_VERSION, HWS_Main ModVersion '$PSC_VERSION'"
+    exit 1
+fi
+
+# The development log (scripts/HWS_Diag.psc) goes only into versions named "-diag"; every other build
+# gets release/HWS_Diag.psc, whose functions are empty.
+case "$VERSION" in
+    *-diag*) DIAG_SRC="$HERE/scripts/HWS_Diag.psc"; echo "== DIAG BUILD $VERSION: development log ON, not for release" ;;
+    *)       DIAG_SRC="$HERE/release/HWS_Diag.psc" ;;
+esac
+
 BUILD="$HERE/build"
 STAGE="$BUILD/stage"
 rm -rf "$BUILD"
@@ -33,8 +48,11 @@ FLAGS="$(cygpath -w "$TOOLS/../Data/Source/Scripts/TESV_Papyrus_Flags.flg")"
 # the vanilla ones, plus files SKSE does not touch (Debug).
 # imports/ holds headers compiled against but never shipped (Magelight.psc: Magelight installs its own).
 IMPORTS="$(cygpath -w "$HERE/scripts");$(cygpath -w "$HERE/imports");$(cygpath -w "$TOOLS/../Data/Scripts/Source");$(cygpath -w "$TOOLS/../Data/Source/Scripts")"
-for psc in "$HERE"/scripts/*.psc; do
-    "$TOOLS/Caprica/Caprica.exe" --game skyrim --ignorecwd -q --import "$IMPORTS" --flags "$FLAGS" \
+for psc in "$HERE"/scripts/*.psc "$DIAG_SRC"; do
+    if [ "$(basename "$psc")" = "HWS_Diag.psc" ] && [ "$psc" != "$DIAG_SRC" ]; then continue; fi
+    # Caprica only compiles a file inside an import folder, so the script's own folder leads the list
+    # (release/ for the stub).
+    "$TOOLS/Caprica/Caprica.exe" --game skyrim --ignorecwd -q --import "$(cygpath -w "$(dirname "$psc")");$IMPORTS" --flags "$FLAGS" \
         --output "$(cygpath -w "$STAGE/Scripts")" "$(cygpath -w "$psc")"
 done
 # Every .pex header records the source path, Windows user and machine name of whoever compiled it.
@@ -60,8 +78,18 @@ echo "== 2/6 build $NAME.esp"
 bash "$TOOLS/spriggit-cli.sh" deserialize --InputPath "$HERE/spriggit/$NAME" --OutputPath "$STAGE/$NAME.esp" 2>&1 | tail -1
 
 echo "== 3/6 round-trip check"
-bash "$TOOLS/spriggit-cli.sh" serialize --InputPath "$STAGE/$NAME.esp" --OutputPath "$BUILD/roundtrip/$NAME" \
+# Spriggit itself, not tools/spriggit-cli.sh: from toolkit 4.0.0 that wrapper refuses any serialize
+# output without a .yaml file, and Spriggit.Json writes only .json (2026-11-11). The output is scratch
+# in build/, so the wrapper's careful publish isn't needed here. Run from a short temp folder, as the
+# wrapper does, because Spriggit fails on long nested paths.
+if type -P spriggit >/dev/null 2>&1; then SPRIGGIT=(spriggit); else SPRIGGIT=(dotnet tool run spriggit --); fi
+RT_WORK="$(mktemp -d "${TEMP:-/tmp}/hws-rt.XXXXXX")"
+cp "$STAGE/$NAME.esp" "$RT_WORK/"
+"${SPRIGGIT[@]}" serialize --InputPath "$(cygpath -w "$RT_WORK/$NAME.esp")" --OutputPath "$(cygpath -w "$RT_WORK/out")" \
     --GameRelease SkyrimSE --PackageName Spriggit.Json --PackageVersion 0.41.0 2>&1 | tail -1
+mkdir -p "$BUILD/roundtrip"
+cp -r "$RT_WORK/out" "$BUILD/roundtrip/$NAME"
+rm -rf -- "$RT_WORK"
 python - "$(cygpath -w "$HERE/spriggit/$NAME")" "$(cygpath -w "$BUILD/roundtrip/$NAME")" <<'EOF'
 import json, os, sys
 src, back = sys.argv[1], sys.argv[2]
@@ -92,6 +120,7 @@ EOF
 
 echo "== 4/6 stage"
 cp "$HERE"/scripts/*.psc "$STAGE/Source/Scripts/"
+cp "$DIAG_SRC" "$STAGE/Source/Scripts/HWS_Diag.psc"
 cp -r "$HERE/layer/$LAYER_ID" "$STAGE/SKSE/Plugins/SkyrimNet/external/"
 # The Magelight UI page (optional at run time: without Magelight the folder is simply never read).
 mkdir -p "$STAGE/Magelight"

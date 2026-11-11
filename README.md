@@ -54,7 +54,7 @@ version 1.70, so it loads on SE 1.5.97 as well as AE, without needing BEES.
 ## Console levers
 
 - Prefer the plain message boxes (say, on a controller): `set HWS_UseMagelight to 0`. Set it back to
-  `1` and load a save to bring the page back.
+  `1` and the page comes back at the next proposal.
 - Stuck mid-skip (black screen, no controls): `stopquest HWS_Quest`, then `startquest HWS_Quest`.
   Loading a save should also recover, since a skip interrupted by a load is finished with the plain
   account, though that path hasn't been tested in game.
